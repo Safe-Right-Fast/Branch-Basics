@@ -31,9 +31,15 @@ flowchart LR
 epic-<epicIssueId>/issue-<workIssueId>/<short-description>
 ```
 
-If there's no parent epic, use `no-epic/issue-<workIssueId>/<short-description>`.
+Leave out any part you don't have:
 
-Use lowercase words joined with hyphens. Use the issue for the specific work, not only the epic.
+| Situation | Branch name |
+| --- | --- |
+| Has an epic | `epic-503/issue-576/estimate-guard` |
+| No epic | `issue-1698/fix-export` |
+| Spike with no issue | `spike/try-new-chart` |
+
+Use lowercase words joined with hyphens, and no `#`. The last part describes any kind of work, not only features. Use the issue for the specific work, not only the epic.
 
 ## Everyday work
 
