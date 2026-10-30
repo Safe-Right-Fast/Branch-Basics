@@ -1,176 +1,89 @@
-# Branch Protection
+# Branch Basics
 
-## Legend
+How code moves from a work branch to production. This is the Opportunity Tracker flow, and new projects should follow it. Older repositories with an `integration` branch can keep using it until they move over.
 
-<table>
-  <thead>
-    <tr>
-      <th>Instance</th>
-      <th>Branch</th>
-      <th>Description, Instructions, Notes</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Main</td>
-      <td>Main</td>
-      <td>Accepts merges from Working and Hotfixes</td>
-    </tr>
-    <tr>
-      <td>Working</td>
-      <td>Integration</td>
-      <td>Accepts merges from Features/Issues and Hotfixes</td>
-    </tr>
-    <tr>
-      <td>Features/Issues</td>
-      <td>topic-*</td>
-      <td>Always branch off HEAD of Working</td>
-    </tr>
-    <tr>
-      <td>Hotfix</td>
-      <td>hotfix-*</td>
-      <td>Always branch off Main</td>
-    </tr>
-  </tbody>
-</table>
+## The branches
 
-## Main Branches
+| Branch | What it is | Deploys to |
+| --- | --- | --- |
+| `main` | What's in production | Production |
+| `staging` | The next release | QA |
+| Work branch | One piece of work | Nowhere |
+| Integration branch | Large or risky work that lands together | Nowhere |
 
-The main repository will always hold two critical branches:
+`main` and `staging` are protected. Changes reach them through a pull request with one approval.
 
-* `Integration`
-* `Main`
+## How code flows
 
-The main branch should be considered `origin/integration` and will be the main branch where the source code of `HEAD` always reflects a state with the latest delivered development changes for the next release. As a developer, you will be branching and merging from `Integration`.
-
-Consider `origin/main` to always represent the latest code deployed to production. During day to day development, the `Main` branch will not be interacted with.
-
-When the source code in the `Integration` branch is stable and has been deployed, all of the changes will be merged into `Main` and tagged with a release number. *How this is done in detail will be discussed later.*
-
-## Supporting Branches
-
-Supporting branches are used to aid parallel development between team members, ease tracking of features, and to assist in quickly fixing live production problems. Unlike the main branches, these branches always have a limited life time, since they will be removed eventually.
-
-The different types of branches we may use are:
-
-* Feature branches
-* Bug branches
-* Hotfix branches
-
-Each of these branches have a specific purpose and are bound to strict rules as to which branches may be their originating branch and which branches must be their merge targets. Each branch and its usage is explained below.
-
-### Feature Branches
-
-Feature branches are used when developing a new feature or enhancement which has the potential of a development lifespan longer than a single deployment. When starting development, the deployment in which this feature will be released may not be known. No matter when the feature branch will be finished, it will always be merged back into the Integration branch.
-
-During the lifespan of the feature development, the lead should watch the `Integration` branch (network tool or branch tool in GitHub) to see if there have been commits since the feature was branched. Any and all changes to `Integration` should be merged into the feature before merging back to `Integration`; this can be done at various times during the project or at the end, but time to handle merge conflicts should be accounted for.
-
-`<tbd number>` represents the project to which Project Management will be tracked.
-
-* Must branch from: `Integration`
-* Must merge back into: `Integration`
-* Branch naming convention: `feature-<tbd number>`
-
-#### Working with a feature branch
-
-If the branch does not exist yet (check with the Lead), create the branch locally and then push to GitHub. A feature branch should always be 'publicly' available. That is, development should never exist in just one developer's local branch.
-
-```
-$ git checkout -b feature-id Integration                 // creates a local branch for the new feature
-$ git push origin feature-id                        // makes the new feature remotely available
+```mermaid
+flowchart LR
+  W[Work branch] -->|PR| S[staging]
+  I[Integration branch] -->|PR| S
+  W2[Work branch] -->|PR| I
+  S -->|Cycle release PR| M[main]
+  H[Hotfix branch] -->|PR| M
+  M -->|Sync PR| S
 ```
 
-Periodically, changes made to `Integration` (if any) should be merged back into your feature branch.
+## Naming work branches
 
 ```
-$ git merge Integration                                  // merges changes from Integration into feature branch
+epic-<epicIssueId>/issue-<workIssueId>/<short-description>
 ```
 
-When development on the feature is complete, the lead (or engineer in charge) should merge changes into `Integration` and then make sure the remote branch is deleted.
+Leave out any part you don't have:
 
-```
-$ git checkout Integration                               // change to the Integration branch
-$ git merge --no-ff feature-id                      // makes sure to create a commit object during merge
-$ git push origin Integration                            // push merge changes
-$ git push origin :feature-id                       // deletes the remote branch
-```
+| Situation | Branch name |
+| --- | --- |
+| Has an epic | `epic-503/issue-576/estimate-guard` |
+| No epic | `issue-1698/fix-export` |
+| Spike with no issue | `spike/try-new-chart` |
 
-### Bug Branches
+Use lowercase words joined with hyphens, and no `#`. The last part describes any kind of work, not only features. Use the issue for the specific work, not only the epic.
 
-Bug branches differ from feature branches only semantically. Bug branches will be created when there is a bug on the live site that should be fixed and merged into the next deployment. For that reason, a bug branch typically will not last longer than one deployment cycle. Additionally, bug branches are used to explicitly track the difference between bug development and feature development. No matter when the bug branch will be finished, it will always be merged back into `Integration`.
+## Everyday work
 
-Although likelihood will be less, during the lifespan of the bug development, the lead should watch the `Integration` branch (network tool or branch tool in GitHub) to see if there have been commits since the bug was branched. Any and all changes to `Integration` should be merged into the bug before merging back to `Integration`; this can be done at various times during the project or at the end, but time to handle merge conflicts should be accounted for.
+1. Branch from the latest `staging`.
+2. Open a pull request into `staging`.
+3. Add exactly one release label:
+   - `release:minor` for a backward-compatible user-facing feature
+   - `release:patch` for fixes, docs, tests, refactors and internal changes
+4. Get one approval and merge. QA deploys automatically.
 
-`<tbd number>` represents the Basecamp project to which Project Management will be tracked.
+Delete the branch once it's merged.
 
-* Must branch from: `Integration`
-* Must merge back into: `Integration`
-* Branch naming convention: `bug-<tbd number>`
+## Integration branches
 
-#### Working with a bug branch
+Most work goes straight to `staging`. Use an integration branch only for large or risky work that shouldn't land in pieces, such as a new API.
 
-If the branch does not exist yet (check with the Lead), create the branch locally and then push to GitHub. A bug branch should always be 'publicly' available. That is, development should never exist in just one developer's local branch.
+- Branch it from `staging` and name it like any other work branch, ending in `-integration`.
+- Each piece of work is its own pull request into the integration branch. Don't stack pull requests on each other.
+- Keep it updated from `staging`.
+- One pull request takes the whole branch into `staging`.
 
-```
-$ git checkout -b bug-id Integration                     // creates a local branch for the new bug
-$ git push origin bug-id                            // makes the new bug remotely available
-```
+An integration branch doesn't save CI time, because each pull request into it still runs tests. Use it to control how work lands.
 
-Periodically, changes made to `Integration` (if any) should be merged back into your bug branch.
+## Cycle releases
 
-```
-$ git merge Integration                                  // merges changes from Integration into bug branch
-```
+When a cycle is ready, open a pull request from `staging` into `main`. The release version comes from the labels on the merged work pull requests. Merging deploys to production automatically.
 
-When development on the bug is complete, [the Lead] should merge changes into `Integration` and then make sure the remote branch is deleted.
+## Hotfixes
 
-```
-$ git checkout Integration                               // change to the Integration branch
-$ git merge --no-ff bug-id                          // makes sure to create a commit object during merge
-$ git push origin Integration                            // push merge changes
-$ git push origin :bug-id                           // deletes the remote branch
-```
+Use a hotfix only for a production problem that can't wait for the next cycle.
 
-### Hotfix Branches
+1. Branch from the latest `main`, not `staging`.
+2. Open a pull request into `main`.
+3. Add the `hotfix` label and `release:patch`.
+4. Get one approval and merge. Production deploys automatically.
+5. Open a sync pull request from `main` into `staging`, and use a merge commit so the release history is kept.
 
-A hotfix branch comes from the need to act immediately upon an undesired state of a live production version. Additionally, because of the urgency, a hotfix is not required to be be pushed during a scheduled deployment. Due to these requirements, a hotfix branch is always branched from a tagged `Main` branch. This is done for two reasons:
+## Manual deploys
 
-* Development on the `Integration` branch can continue while the hotfix is being addressed.
-* A tagged `Main` branch still represents what is in production. At the point in time where a hotfix is needed, there could have been multiple commits to `Integration` which would then no longer represent production.
+Pushes to `main` and `staging` deploy on their own, so a manual run should only be needed for a redeploy or recovery.
 
-`<tbd number>` represents the Basecamp project to which Project Management will be tracked.
+| Workflow | Runs from |
+| --- | --- |
+| Deploy to Prod | `main` only |
+| Deploy to QA | `staging` only |
 
-* Must branch from: tagged `Main`
-* Must merge back into: `Integration` and `Main`
-* Branch naming convention: `hotfix-<tbd number>`
-
-#### Working with a hotfix branch
-
-If the branch does not exist yet (check with the Lead), create the branch locally and then push to GitHub. A hotfix branch should always be 'publicly' available. That is, development should never exist in just one developer's local branch.
-
-```
-$ git checkout -b hotfix-id Main                  // creates a local branch for the new hotfix
-$ git push origin hotfix-id                         // makes the new hotfix remotely available
-```
-
-When development on the hotfix is complete, [the Lead] should merge changes into `Main` and then update the tag.
-
-```
-$ git checkout Main                               // change to the Main branch
-$ git merge --no-ff hotfix-id                       // forces creation of commit object during merge
-$ git tag -a <tag>                                  // tags the fix
-$ git push origin Main --tags                     // push tag changes
-```
-
-Merge changes into `Integration` so not to lose the hotfix and then delete the remote hotfix branch.
-
-```
-$ git checkout Integration                               // change to the Integration branch
-$ git merge --no-ff hotfix-id                       // forces creation of commit object during merge
-$ git push origin Integration                            // push merge changes
-$ git push origin :hotfix-id                        // deletes the remote branch
-```
-
-## Workflow Diagram
-
-<img src='./Workflow.png'>
+These restrictions are being added to the workflows. Until that's done, only run a deploy from the branch listed here.
